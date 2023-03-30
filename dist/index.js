@@ -4,14 +4,19 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
-const config_1 = require("./config");
+// import {config} from "./config";
 const monitor_1 = require("./src/monitor");
 const app = (0, express_1.default)();
 app.get('/', (req, res) => {
     res.send('ospex server');
 });
-app.listen(config_1.config.server.port, () => {
+// app.listen(config.server.port, () => {
+//     monitor();
+//     return console.log(`[server]: Server is running on ${config.server.port}`);
+// });
+const PORT = process.env.PORT || 8000;
+app.listen(PORT, () => {
     (0, monitor_1.monitor)();
-    return console.log(`[server]: Server is running on ${config_1.config.server.port}`);
+    console.log(`App listening on port ${PORT}!`);
 });
 //# sourceMappingURL=index.js.map
