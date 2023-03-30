@@ -241,7 +241,7 @@ const scoreSpeculations = async () => {
     }
 }
 
-async function monitor(): Promise<void> {
+const monitor = async () => {
     const cfpContract = new ethers.Contract(cfpAddress, cfpAbi, provider);
     const contestContract = new ethers.Contract(contestAddress, contestAbi, provider);
     const contestsCreatedEventFilter = contestContract.filters.ContestCreated();
