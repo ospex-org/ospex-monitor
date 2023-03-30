@@ -14,7 +14,7 @@ app.get('/', (req, res) => {
 //     monitor();
 //     return console.log(`[server]: Server is running on ${config.server.port}`);
 // });
-const PORT = process.env.PORT || 8000;
+const PORT = process.env.PORT || 8001;
 app.listen(PORT, () => {
     (0, monitor_1.monitor)();
     console.log(`App listening on port ${PORT}!`);

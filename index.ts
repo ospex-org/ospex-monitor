@@ -13,7 +13,7 @@ app.get('/', (req: Request, res: Response) => {
 //     return console.log(`[server]: Server is running on ${config.server.port}`);
 // });
 
-const PORT = process.env.PORT || 8000;
+const PORT = process.env.PORT || 8001;
 
 app.listen(PORT, () => { 
     monitor();
