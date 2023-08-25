@@ -2,14 +2,21 @@ import { ethers } from 'ethers';
 import * as schedule from 'node-schedule';
 import * as dotenv from 'dotenv';
 const axios = require('axios').default;
+const fs = require('fs');
+const path = require('path');
+const EthCrypto = require('eth-crypto');
+const sourceFilePath = path.join(__dirname, 'contestScoring.js');
 
 dotenv.config();
 
 const provider = new ethers.JsonRpcProvider(process.env.PROVIDER);
+const wallet = new ethers.Wallet(process.env.WALLET_PRIVATE_KEY!, provider);
 const cfpAddress = process.env.CFPADDRESS!;
 const contestAddress = process.env.CONTESTADDRESS!;
 import cfpAbi from '../abis/CFPv1.json'
 import contestAbi from '../abis/ContestOracleResolved.json'
+
+const contestContract = new ethers.Contract(contestAddress, contestAbi, wallet);
 
 const headers = {
 	'Content-Type': 'application/json'
@@ -48,6 +55,10 @@ interface RundownResult {
     }
 }
 
+interface SportspageResponse {
+    data: SportspageResults
+}
+
 interface SportspageResults {
     results: [
         {
@@ -81,8 +92,15 @@ interface SportspageResults {
     ]
 }
 
-interface SportspageResponse {
-    data: SportspageResults
+interface JsonoddsResponse {
+    data: [JsonoddsResult]
+}
+
+interface JsonoddsResult {
+    ID: string,
+    HomeScore: number,
+    AwayScore: number,
+    Final: boolean
 }
 
 interface AutotaskResponse {
@@ -101,14 +119,15 @@ interface AutotaskResult {
 }
 
 interface contests {
-    id: number,
+    contestId: number,
     rundownId?: string,
     sportspageId?: string,
+    jsonoddsId?: string,
     contestCreator?: string
 }
 
 interface speculations {
-    id: number, 
+    speculationId: number, 
     contestId: number, 
     lockTime?: number, 
     speculationCreator?: string
@@ -153,6 +172,19 @@ function getSportspageResults(eventId: string) {
     .catch((error: Error) => console.log(error));
 }
 
+function getJsonoddsResults(eventId: string) {
+    return axios({
+        url: `${process.env.JSONODDS_GAMEBYID_API_URL}${eventId}`,
+        method: 'get',
+        timeout: 60000,
+        headers: {
+            'x-api-key': process.env.JSONODDS_API_KEY
+        }
+    })
+    .then((response: JsonoddsResponse) => response.data[0])
+    .catch((error: Error) => console.log(error));
+}
+
 function executeAutotask(url: string, id: number) {
     return axios({
         url,
@@ -166,6 +198,16 @@ function executeAutotask(url: string, id: number) {
 }
 
 const scoreContests = async (contestsPending: contests[]): Promise<void> => {
+    const source = fs.readFileSync(sourceFilePath, 'utf8');
+    const secrets = EthCrypto.cipher.stringify(
+        await EthCrypto.encryptWithPublicKey(
+            process.env.DON_PUBLIC_KEY,
+            "https://testbucket20230723v.s3.us-west-1.amazonaws.com/offchain-secrets2.json"
+        ),
+    );
+    const subscriptionId = 1981;
+    const gasLimit = 300000;
+    
     const sportspageIds = contestsPending.map((contest) => contest.sportspageId);
     for (const id of sportspageIds) {
       try {
@@ -174,21 +216,22 @@ const scoreContests = async (contestsPending: contests[]): Promise<void> => {
           (contest) => contest.sportspageId === result.results[0].gameId.toString()
         );
         if (result.results[0].status === "final" && contestIdToScore) {
-          const rundownResults: RundownResult = await getRundownResults(contestIdToScore.rundownId!);
-          if (rundownResults.score.event_status === "STATUS_FINAL") {
-            const autoResponse: AutotaskResult = await executeAutotask(
-              process.env.SCORE_CONTEST_AUTOTASK_WEBHOOK!,
-              contestIdToScore.id
-            );
-            if (autoResponse.status === "success") {
-              console.log("Score Contest response status:", autoResponse.status);
-              console.log("Contest scored:", contestIdToScore.id);
-              contestsPending.splice(
-                contestsPending.findIndex((a) => a.id === contestIdToScore.id),
-                1
-              );
-            } else {
-              throw new Error(autoResponse.status);
+          const rundownResult: RundownResult = await getRundownResults(contestIdToScore.rundownId!);
+          const jsonoddsResult: JsonoddsResult = await getJsonoddsResults(contestIdToScore.jsonoddsId!);
+          if (rundownResult.score.event_status === "STATUS_FINAL" && jsonoddsResult.Final) {
+            try {
+                const tx = await contestContract.scoreContest(contestIdToScore.contestId, source, '0x' + secrets, subscriptionId, gasLimit, {
+                    gasLimit: 15000000
+                });
+                const receipt = await tx.wait();
+                console.log("Score Contest mined in block:", receipt.blockNumber);
+                console.log("Contest scored:", contestIdToScore.contestId);
+                contestsPending.splice(
+                    contestsPending.findIndex((a) => a.contestId === contestIdToScore.contestId),
+                    1
+                );
+            } catch (error) {
+                throw new Error(`Error while scoring contest: ${error}`);
             }
           }
         }
@@ -203,12 +246,12 @@ const lockSpeculations = async () => {
         const curDate = Date.now() / 1000;
         if (speculation.lockTime && curDate > speculation.lockTime) {
             try {
-                const response = await executeAutotask(process.env.LOCK_CONTEST_SPECULATION_AUTOTASK_WEBHOOK!, speculation.id);
+                const response = await executeAutotask(process.env.LOCK_CONTEST_SPECULATION_AUTOTASK_WEBHOOK!, speculation.speculationId);
                 if (response.status === 'success') {
                     console.log('Lock Speculation response status:', response.status);
-                    console.log('Speculation locked:', speculation.id);
-                    speculationsPendingScore.push({id: speculation.id, contestId: speculation.contestId});
-                    const index = speculationsPendingLock.findIndex(a => a.id === speculation.id);
+                    console.log('Speculation locked:', speculation.speculationId);
+                    speculationsPendingScore.push({speculationId: speculation.speculationId, contestId: speculation.contestId});
+                    const index = speculationsPendingLock.findIndex(a => a.speculationId === speculation.speculationId);
                     speculationsPendingLock.splice(index, 1);
                 } else {
                     console.log(response.status);
@@ -222,14 +265,14 @@ const lockSpeculations = async () => {
 
 const scoreSpeculations = async () => {
     for (const speculation of speculationsPendingScore) {
-        const contest = contestsPending.find(a => a.id === speculation.contestId);
+        const contest = contestsPending.find(a => a.contestId === speculation.contestId);
         if (!contest) {
             try {
-                const response = await executeAutotask(process.env.SCORE_CONTEST_SPECULATION_AUTOTASK_WEBHOOK!, speculation.id);
+                const response = await executeAutotask(process.env.SCORE_CONTEST_SPECULATION_AUTOTASK_WEBHOOK!, speculation.speculationId);
                 if (response.status === 'success') {
                     console.log('Score Speculation response status:', response.status);
-                    console.log('Speculation scored:', speculation.id);
-                    const index = speculationsPendingScore.findIndex(a => a.id === speculation.id);
+                    console.log('Speculation scored:', speculation.speculationId);
+                    const index = speculationsPendingScore.findIndex(a => a.speculationId === speculation.speculationId);
                     speculationsPendingScore.splice(index, 1);
                 } else {
                     console.log(response.status);
@@ -259,11 +302,12 @@ const monitor = async () => {
     for (const key in contestsCreatedEvents) {
         const value = contestsCreatedEvents[key];
         if(value.args.contestCreator === process.env.CONTESTCREATOR || value.args.contestCreator === process.env.RELAYER) {
-            if(!contestsCreated.some(contest => (contest.id === Number(value.args.id)))) {
+            if(!contestsCreated.some(contest => (contest.contestId === Number(value.args.contestId)))) {
                 contestsCreated.push({
-                    id: Number(value.args.id), 
+                    contestId: Number(value.args.contestId), 
                     rundownId: value.args.rundownId,
                     sportspageId: value.args.sportspageId,
+                    jsonoddsId: value.args.jsonoddsId,
                     contestCreator: value.args.contestCreator
                 });
             }
@@ -272,15 +316,15 @@ const monitor = async () => {
 
     for (const key in contestsScoredEvents) {
         const value = contestsScoredEvents[key];
-        if(!contestsScored.some(contest => contest.id === Number(value.args.id))) {
+        if(!contestsScored.some(contest => contest.contestId === Number(value.args.contestId))) {
             contestsScored.push({
-                id: Number(value.args.id)
+                contestId: Number(value.args.contestId)
             });
         }
     }
 
     contestsCreated.forEach(element => {
-        if(!(contestsScored.some(contest => contest.id === element.id))) {
+        if(!(contestsScored.some(contest => contest.contestId === element.contestId))) {
             contestsPending.push(element);
         }
     });
@@ -288,11 +332,11 @@ const monitor = async () => {
     for (const key in speculationsCreatedEvents) {
         const value = speculationsCreatedEvents[key];
         if(value.args.speculationCreator === process.env.CONTESTCREATOR || value.args.speculationCreator === process.env.RELAYER) {
-            if(!speculationsCreated.some(speculation => (speculation.id === Number(value.args.id)))) {
-                const validContest = contestsCreated.some(contest => contest.id === Number(value.args.contestId))
+            if(!speculationsCreated.some(speculation => (speculation.speculationId === Number(value.args.speculationId)))) {
+                const validContest = contestsCreated.some(contest => contest.contestId === Number(value.args.contestId))
                 if (validContest) {
                     speculationsCreated.push({
-                        id: Number(value.args.id), 
+                        speculationId: Number(value.args.speculationId), 
                         contestId: Number(value.args.contestId), 
                         lockTime: Number(value.args.lockTime),
                         speculationCreator: value.args.speculationCreator
@@ -304,11 +348,11 @@ const monitor = async () => {
 
     for (const key in speculationsLockedEvents) {
         const value = speculationsLockedEvents[key];
-        if(!speculationsLocked.some(speculation => speculation.id === Number(value.args.id))) {
-            const validContest = contestsCreated.some(contest => contest.id === Number(value.args.contestId))
+        if(!speculationsLocked.some(speculation => speculation.speculationId === Number(value.args.speculationId))) {
+            const validContest = contestsCreated.some(contest => contest.contestId === Number(value.args.contestId))
             if (validContest) {
                 speculationsLocked.push({
-                    id: Number(value.args.id), 
+                    speculationId: Number(value.args.speculationId), 
                     contestId: Number(value.args.contestId)
                 });
             }
@@ -316,18 +360,18 @@ const monitor = async () => {
     }
 
     speculationsCreated.forEach(element => {
-        if(!(speculationsLocked.some(speculation => speculation.id === element.id))) {
+        if(!(speculationsLocked.some(speculation => speculation.speculationId === element.speculationId))) {
             speculationsPendingLock.push(element);
         }
     });
 
     for (const key in speculationsScoredEvents) {
         const value = speculationsScoredEvents[key];
-        if(!speculationsScored.some(speculation => speculation.id === Number(value.args.id))) {
-            const validContest = contestsCreated.some(contest => contest.id === Number(value.args.contestId))
+        if(!speculationsScored.some(speculation => speculation.speculationId === Number(value.args.speculationId))) {
+            const validContest = contestsCreated.some(contest => contest.contestId === Number(value.args.contestId))
             if (validContest) {
                 speculationsScored.push({
-                    id: Number(value.args.id), 
+                    speculationId: Number(value.args.speculationId), 
                     contestId: Number(value.args.contestId)
                 });
             }
@@ -335,7 +379,7 @@ const monitor = async () => {
     }
 
     speculationsLocked.forEach(element => {
-        if(!(speculationsScored.some(speculation => speculation.id === element.id))) {
+        if(!(speculationsScored.some(speculation => speculation.speculationId === element.speculationId))) {
             speculationsPendingScore.push(element);
         }
     });
@@ -349,18 +393,19 @@ const monitor = async () => {
     console.log('speculations scored:', speculationsScored);
     console.log('speculations pending score:', speculationsPendingScore);
 
-    contestContract.on('ContestCreated', (id: bigint, rundownId: string, sportspageId: string) => {
+    contestContract.on('ContestCreated', (contestId: bigint, rundownId: string, sportspageId: string, jsonoddsId: string) => {
         contestsPending.push({
-            id: Number(id), 
+            contestId: Number(contestId), 
             rundownId,
-            sportspageId
+            sportspageId,
+            jsonoddsId
         });
         console.log('New contests pending array:', contestsPending);
     });
 
-    cfpContract.on('SpeculationCreated', (id: bigint, contestId: string, lockTime: string) => {
+    cfpContract.on('SpeculationCreated', (speculationId: bigint, contestId: string, lockTime: string) => {
         speculationsPendingLock.push({
-            id: Number(id), 
+            speculationId: Number(speculationId), 
             contestId: Number(contestId), 
             lockTime: Number(lockTime)
         });

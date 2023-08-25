@@ -1,6 +1,32 @@
 [
 	{
-		"inputs": [],
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "oracle",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "linkTokenAddress",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "linkBillingRegistryProxyAddress",
+				"type": "address"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "createContestSourceHashValue",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "scoreContestSourceHashValue",
+				"type": "bytes32"
+			}
+		],
 		"stateMutability": "nonpayable",
 		"type": "constructor"
 	},
@@ -16,19 +42,50 @@
 		"type": "error"
 	},
 	{
+		"inputs": [],
+		"name": "EmptyArgs",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "EmptySecrets",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "EmptySource",
+		"type": "error"
+	},
+	{
 		"inputs": [
 			{
-				"internalType": "uint8",
-				"name": "oracle1",
-				"type": "uint8"
-			},
-			{
-				"internalType": "uint8",
-				"name": "oracle2",
-				"type": "uint8"
+				"internalType": "uint256",
+				"name": "requiredAmount",
+				"type": "uint256"
 			}
 		],
-		"name": "OracleJobsNotDifferent",
+		"name": "LinkAmountTooLow",
+		"type": "error"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "requiredAmount",
+				"type": "uint256"
+			}
+		],
+		"name": "LinkAmountTooLowFromSender",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "RequestIsAlreadyPending",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "RequestIsNotPending",
 		"type": "error"
 	},
 	{
@@ -40,6 +97,11 @@
 			}
 		],
 		"name": "ScoreContestNotInReadyStatus",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "SenderIsNotRegistry",
 		"type": "error"
 	},
 	{
@@ -58,47 +120,8 @@
 		"inputs": [
 			{
 				"indexed": true,
-				"internalType": "bytes32",
-				"name": "id",
-				"type": "bytes32"
-			}
-		],
-		"name": "ChainlinkCancelled",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "bytes32",
-				"name": "id",
-				"type": "bytes32"
-			}
-		],
-		"name": "ChainlinkFulfilled",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "bytes32",
-				"name": "id",
-				"type": "bytes32"
-			}
-		],
-		"name": "ChainlinkRequested",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
 				"internalType": "uint256",
-				"name": "id",
+				"name": "contestId",
 				"type": "uint256"
 			},
 			{
@@ -115,15 +138,21 @@
 			},
 			{
 				"indexed": false,
+				"internalType": "string",
+				"name": "jsonoddsId",
+				"type": "string"
+			},
+			{
+				"indexed": false,
 				"internalType": "address",
 				"name": "contestCreator",
 				"type": "address"
 			},
 			{
 				"indexed": false,
-				"internalType": "uint64",
+				"internalType": "uint256",
 				"name": "contestCriteria",
-				"type": "uint64"
+				"type": "uint256"
 			}
 		],
 		"name": "ContestCreated",
@@ -135,7 +164,7 @@
 			{
 				"indexed": true,
 				"internalType": "uint256",
-				"name": "id",
+				"name": "contestId",
 				"type": "uint256"
 			},
 			{
@@ -152,6 +181,95 @@
 			}
 		],
 		"name": "ContestScored",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "bytes32",
+				"name": "requestId",
+				"type": "bytes32"
+			},
+			{
+				"indexed": false,
+				"internalType": "bytes",
+				"name": "result",
+				"type": "bytes"
+			},
+			{
+				"indexed": false,
+				"internalType": "bytes",
+				"name": "err",
+				"type": "bytes"
+			}
+		],
+		"name": "OCRResponse",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "from",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "to",
+				"type": "address"
+			}
+		],
+		"name": "OwnershipTransferRequested",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "from",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "to",
+				"type": "address"
+			}
+		],
+		"name": "OwnershipTransferred",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "bytes32",
+				"name": "id",
+				"type": "bytes32"
+			}
+		],
+		"name": "RequestFulfilled",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "bytes32",
+				"name": "id",
+				"type": "bytes32"
+			}
+		],
+		"name": "RequestSent",
 		"type": "event"
 	},
 	{
@@ -244,6 +362,19 @@
 	},
 	{
 		"inputs": [],
+		"name": "LINKMANAGER_ROLE",
+		"outputs": [
+			{
+				"internalType": "bytes32",
+				"name": "",
+				"type": "bytes32"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
 		"name": "SCOREMANAGER_ROLE",
 		"outputs": [
 			{
@@ -253,6 +384,45 @@
 			}
 		],
 		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "SOURCEMANAGER_ROLE",
+		"outputs": [
+			{
+				"internalType": "bytes32",
+				"name": "",
+				"type": "bytes32"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "acceptOwnership",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes",
+				"name": "input",
+				"type": "bytes"
+			}
+		],
+		"name": "bytesToUint32",
+		"outputs": [
+			{
+				"internalType": "uint32",
+				"name": "output",
+				"type": "uint32"
+			}
+		],
+		"stateMutability": "pure",
 		"type": "function"
 	},
 	{
@@ -269,44 +439,6 @@
 				"internalType": "uint256",
 				"name": "",
 				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"name": "contestCriteria1",
-		"outputs": [
-			{
-				"internalType": "uint64",
-				"name": "",
-				"type": "uint64"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"name": "contestCriteria2",
-		"outputs": [
-			{
-				"internalType": "uint64",
-				"name": "",
-				"type": "uint64"
 			}
 		],
 		"stateMutability": "view",
@@ -396,6 +528,11 @@
 				"internalType": "string",
 				"name": "sportspageId",
 				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "jsonoddsId",
+				"type": "string"
 			}
 		],
 		"stateMutability": "view",
@@ -405,33 +542,38 @@
 		"inputs": [
 			{
 				"internalType": "string",
-				"name": "_rundownId",
+				"name": "rundownId",
 				"type": "string"
 			},
 			{
 				"internalType": "string",
-				"name": "_sportspageId",
+				"name": "sportspageId",
 				"type": "string"
 			},
 			{
-				"internalType": "uint8",
-				"name": "_oracleForCreationValidation1",
-				"type": "uint8"
+				"internalType": "string",
+				"name": "jsonoddsId",
+				"type": "string"
 			},
 			{
-				"internalType": "uint8",
-				"name": "_oracleForCreationValidation2",
-				"type": "uint8"
+				"internalType": "string",
+				"name": "source",
+				"type": "string"
 			},
 			{
-				"internalType": "uint8",
-				"name": "_oracleForContestScoring1",
-				"type": "uint8"
+				"internalType": "bytes",
+				"name": "secrets",
+				"type": "bytes"
 			},
 			{
-				"internalType": "uint8",
-				"name": "_oracleForContestScoring2",
-				"type": "uint8"
+				"internalType": "uint64",
+				"name": "subscriptionId",
+				"type": "uint64"
+			},
+			{
+				"internalType": "uint32",
+				"name": "gasLimit",
+				"type": "uint32"
 			}
 		],
 		"name": "createContest",
@@ -440,69 +582,89 @@
 		"type": "function"
 	},
 	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "_oracleAddress",
-				"type": "address"
-			},
+		"inputs": [],
+		"name": "createContestSourceHash",
+		"outputs": [
 			{
 				"internalType": "bytes32",
-				"name": "_jobId",
+				"name": "",
 				"type": "bytes32"
-			},
-			{
-				"internalType": "uint256",
-				"name": "_fee",
-				"type": "uint256"
 			}
 		],
-		"name": "createOracle",
-		"outputs": [],
-		"stateMutability": "nonpayable",
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{
 		"inputs": [
 			{
-				"internalType": "bytes32",
-				"name": "_requestId",
-				"type": "bytes32"
+				"components": [
+					{
+						"internalType": "enum Functions.Location",
+						"name": "codeLocation",
+						"type": "uint8"
+					},
+					{
+						"internalType": "enum Functions.Location",
+						"name": "secretsLocation",
+						"type": "uint8"
+					},
+					{
+						"internalType": "enum Functions.CodeLanguage",
+						"name": "language",
+						"type": "uint8"
+					},
+					{
+						"internalType": "string",
+						"name": "source",
+						"type": "string"
+					},
+					{
+						"internalType": "bytes",
+						"name": "secrets",
+						"type": "bytes"
+					},
+					{
+						"internalType": "string[]",
+						"name": "args",
+						"type": "string[]"
+					}
+				],
+				"internalType": "struct Functions.Request",
+				"name": "req",
+				"type": "tuple"
 			},
 			{
 				"internalType": "uint64",
-				"name": "_result",
+				"name": "subscriptionId",
 				"type": "uint64"
-			}
-		],
-		"name": "fulfillCriteria",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "bytes32",
-				"name": "_requestId",
-				"type": "bytes32"
 			},
 			{
 				"internalType": "uint32",
-				"name": "_result",
+				"name": "gasLimit",
 				"type": "uint32"
+			},
+			{
+				"internalType": "uint256",
+				"name": "gasPrice",
+				"type": "uint256"
 			}
 		],
-		"name": "fulfillScore",
-		"outputs": [],
-		"stateMutability": "nonpayable",
+		"name": "estimateCost",
+		"outputs": [
+			{
+				"internalType": "uint96",
+				"name": "",
+				"type": "uint96"
+			}
+		],
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{
 		"inputs": [
 			{
 				"internalType": "uint256",
-				"name": "_id",
+				"name": "_contestId",
 				"type": "uint256"
 			}
 		],
@@ -526,11 +688,6 @@
 						"type": "address"
 					},
 					{
-						"internalType": "uint8[2]",
-						"name": "scoringOracles",
-						"type": "uint8[2]"
-					},
-					{
 						"internalType": "enum ContestStatus",
 						"name": "contestStatus",
 						"type": "uint8"
@@ -544,11 +701,29 @@
 						"internalType": "string",
 						"name": "sportspageId",
 						"type": "string"
+					},
+					{
+						"internalType": "string",
+						"name": "jsonoddsId",
+						"type": "string"
 					}
 				],
 				"internalType": "struct Contest",
 				"name": "",
 				"type": "tuple"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getDONPublicKey",
+		"outputs": [
+			{
+				"internalType": "bytes",
+				"name": "",
+				"type": "bytes"
 			}
 		],
 		"stateMutability": "view",
@@ -595,6 +770,29 @@
 		"inputs": [
 			{
 				"internalType": "bytes32",
+				"name": "requestId",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "bytes",
+				"name": "response",
+				"type": "bytes"
+			},
+			{
+				"internalType": "bytes",
+				"name": "err",
+				"type": "bytes"
+			}
+		],
+		"name": "handleOracleFulfillment",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
 				"name": "role",
 				"type": "bytes32"
 			},
@@ -617,41 +815,51 @@
 	},
 	{
 		"inputs": [],
-		"name": "oracleId",
+		"name": "latestError",
 		"outputs": [
 			{
-				"internalType": "uint8",
+				"internalType": "bytes",
 				"name": "",
-				"type": "uint8"
+				"type": "bytes"
 			}
 		],
 		"stateMutability": "view",
 		"type": "function"
 	},
 	{
-		"inputs": [
+		"inputs": [],
+		"name": "latestResponse",
+		"outputs": [
 			{
-				"internalType": "uint8",
+				"internalType": "bytes",
 				"name": "",
-				"type": "uint8"
+				"type": "bytes"
 			}
 		],
-		"name": "oracles",
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "linkDenominator",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "owner",
 		"outputs": [
 			{
 				"internalType": "address",
-				"name": "oracleAddress",
+				"name": "",
 				"type": "address"
-			},
-			{
-				"internalType": "bytes32",
-				"name": "jobId",
-				"type": "bytes32"
-			},
-			{
-				"internalType": "uint256",
-				"name": "fee",
-				"type": "uint256"
 			}
 		],
 		"stateMutability": "view",
@@ -716,8 +924,28 @@
 		"inputs": [
 			{
 				"internalType": "uint256",
-				"name": "_id",
+				"name": "_contestId",
 				"type": "uint256"
+			},
+			{
+				"internalType": "string",
+				"name": "source",
+				"type": "string"
+			},
+			{
+				"internalType": "bytes",
+				"name": "secrets",
+				"type": "bytes"
+			},
+			{
+				"internalType": "uint64",
+				"name": "subscriptionId",
+				"type": "uint64"
+			},
+			{
+				"internalType": "uint32",
+				"name": "gasLimit",
+				"type": "uint32"
 			}
 		],
 		"name": "scoreContest",
@@ -729,23 +957,36 @@
 		"inputs": [
 			{
 				"internalType": "uint256",
-				"name": "_id",
+				"name": "_contestId",
 				"type": "uint256"
 			},
 			{
 				"internalType": "uint32",
-				"name": "_awayScore",
+				"name": "awayScore",
 				"type": "uint32"
 			},
 			{
 				"internalType": "uint32",
-				"name": "_homeScore",
+				"name": "homeScore",
 				"type": "uint32"
 			}
 		],
 		"name": "scoreContestManually",
 		"outputs": [],
 		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "scoreContestSourceHash",
+		"outputs": [
+			{
+				"internalType": "bytes32",
+				"name": "",
+				"type": "bytes32"
+			}
+		],
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{
@@ -770,17 +1011,12 @@
 	{
 		"inputs": [
 			{
-				"internalType": "uint8",
-				"name": "_oracle",
-				"type": "uint8"
-			},
-			{
-				"internalType": "uint256",
-				"name": "_fee",
-				"type": "uint256"
+				"internalType": "address",
+				"name": "to",
+				"type": "address"
 			}
 		],
-		"name": "updateFee",
+		"name": "transferOwnership",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -789,11 +1025,55 @@
 		"inputs": [
 			{
 				"internalType": "uint256",
-				"name": "_newContestTimerInterval",
+				"name": "newLinkDenominator",
+				"type": "uint256"
+			}
+		],
+		"name": "updateLinkDenominator",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "sourceHashToUpdate",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "newSourceHash",
+				"type": "bytes32"
+			}
+		],
+		"name": "updateSourceHash",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "newContestTimerInterval",
 				"type": "uint256"
 			}
 		],
 		"name": "updateTimer",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "to",
+				"type": "address"
+			}
+		],
+		"name": "withdrawAllLink",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
