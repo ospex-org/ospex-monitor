@@ -68,17 +68,6 @@
 		"type": "error"
 	},
 	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "requiredAmount",
-				"type": "uint256"
-			}
-		],
-		"name": "LinkAmountTooLowFromSender",
-		"type": "error"
-	},
-	{
 		"inputs": [],
 		"name": "RequestIsAlreadyPending",
 		"type": "error"
