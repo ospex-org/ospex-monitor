@@ -34,27 +34,16 @@
         "inputs": [
             {
                 "internalType": "uint256",
-                "name": "amountSpeculated",
-                "type": "uint256"
-            },
-            {
-                "internalType": "uint256",
-                "name": "contributionAmount",
-                "type": "uint256"
-            }
-        ],
-        "name": "ContributionMayNotExceedTotalAmount",
-        "type": "error"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "uint256",
                 "name": "speculationId",
                 "type": "uint256"
             }
         ],
         "name": "IneligibleForWinnings",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "ReentrancyGuardReentrantCall",
         "type": "error"
     },
     {
