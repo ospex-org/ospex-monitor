@@ -78,7 +78,8 @@ const isContestScored = (contestId: number): boolean => {
 const lockSpeculations = async () => {
     for (const speculation of speculationsCreated) {
         const curDate = Date.now() / 1000;
-        if (speculation.lockTime && curDate > speculation.lockTime && speculation.speculationCreator === process.env.CONTESTCREATOR) {
+        // no longer restricting to only the contest creator
+        if (speculation.lockTime && curDate > speculation.lockTime /* && speculation.speculationCreator === process.env.CONTESTCREATOR */) {
             try {
                 const response = await executeAutotask(process.env.LOCK_CONTEST_SPECULATION_AUTOTASK_WEBHOOK!, speculation.speculationId);
                 if (response.status === 'success') {
@@ -144,7 +145,8 @@ const handleSpeculationCreated = (
     theNumber: number,
     speculationCreator: string) => {
         const exists = speculationsCreated.some(speculation => speculation.speculationId === Number(speculationId));
-        if (!exists && speculationCreator === process.env.CONTESTCREATOR) {
+        // no longer restricting to only the contest creator
+        if (!exists /* && speculationCreator === process.env.CONTESTCREATOR */) {
             speculationsCreated.push({
                 speculationId: Number(speculationId), 
                 contestId: Number(contestId), 
@@ -181,7 +183,8 @@ const monitor = async () => {
         const contestId = Number(event.args.contestId);
         const lockTime = Number(event.args.lockTime);
         const speculationCreator = event.args.speculationCreator;
-        if (!speculationsScored.has(speculationId) && speculationCreator === process.env.CONTESTCREATOR && !speculationsLocked.some(s => s.speculationId === speculationId)) {
+        // no longer restricting to only the contest creator
+        if (!speculationsScored.has(speculationId) /* && speculationCreator === process.env.CONTESTCREATOR */ && !speculationsLocked.some(s => s.speculationId === speculationId)) {
             speculationsCreated.push({
                 speculationId, 
                 contestId, 
